@@ -326,7 +326,7 @@ func NewGaiaApp(
 	app.FeeGrantKeeper = feegrantKeeper
 
 	authzKeeper := authzkeeper.NewKeeper(
-		keys[authzkeeper.StoreKey],appCodec, app.MsgServiceRouter(),
+		keys[authzkeeper.StoreKey], appCodec, app.MsgServiceRouter(),
 	)
 	app.AuthzKeeper = authzKeeper
 	/****  Module Options ****/
@@ -443,6 +443,27 @@ func NewGaiaApp(
 	app.SetAnteHandler(anteHandler)
 
 	app.SetEndBlocker(app.EndBlocker)
+	app.UpgradeKeeper.SetUpgradeHandler("test", func(ctx sdk.Context, _ upgradetypes.Plan, _ module.VersionMap) (module.VersionMap, error) {
+		fromVM := map[string]uint64{
+			"auth":         1,
+			"bank":         1,
+			"capability":   1,
+			"crisis":       1,
+			"distribution": 1,
+			"evidence":     1,
+			"gov":          1,
+			"mint":         1,
+			"params":       1,
+			"slashing":     1,
+			"staking":      1,
+			"upgrade":      1,
+			"vesting":      1,
+			"ibc":          1,
+			"genutil":      1,
+			"transfer":     1,
+		}
+		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
+	})
 
 	if loadLatest {
 		if err := app.LoadLatestVersion(); err != nil {

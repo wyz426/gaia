@@ -20,8 +20,10 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/genutil/types"
 	staking "github.com/cosmos/cosmos-sdk/x/staking/types"
 	ibcxfertypes "github.com/cosmos/ibc-go/modules/apps/transfer/types"
+	ibcconnectiontypes "github.com/cosmos/ibc-go/modules/core/03-connection/types"
 	host "github.com/cosmos/ibc-go/modules/core/24-host"
 	"github.com/cosmos/ibc-go/modules/core/exported"
+	ibcv100 "github.com/cosmos/ibc-go/modules/core/legacy/v100"
 	ibccoretypes "github.com/cosmos/ibc-go/modules/core/types"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -169,6 +171,11 @@ $ %s migrate /path/to/genesis.json --chain-id=cosmoshub-4 --genesis-time=2019-04
 			initialHeight, _ := cmd.Flags().GetInt(flagInitialHeight)
 
 			genDoc.InitialHeight = int64(initialHeight)
+
+			newGenState, err = ibcv100.MigrateGenesis(newGenState, clientCtx, *genDoc, uint64(ibcconnectiontypes.DefaultTimePerBlock))
+			if err != nil {
+				return err
+			}
 
 			replacementKeys, _ := cmd.Flags().GetString(flagReplacementKeys)
 

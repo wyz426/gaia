@@ -13,18 +13,10 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/version"
-	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
-	captypes "github.com/cosmos/cosmos-sdk/x/capability/types"
-	evtypes "github.com/cosmos/cosmos-sdk/x/evidence/types"
 	"github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 	"github.com/cosmos/cosmos-sdk/x/genutil/types"
-	staking "github.com/cosmos/cosmos-sdk/x/staking/types"
-	ibcxfertypes "github.com/cosmos/ibc-go/modules/apps/transfer/types"
 	ibcconnectiontypes "github.com/cosmos/ibc-go/modules/core/03-connection/types"
-	host "github.com/cosmos/ibc-go/modules/core/24-host"
-	"github.com/cosmos/ibc-go/modules/core/exported"
 	ibcv100 "github.com/cosmos/ibc-go/modules/core/legacy/v100"
-	ibccoretypes "github.com/cosmos/ibc-go/modules/core/types"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	tmjson "github.com/tendermint/tendermint/libs/json"
@@ -54,19 +46,13 @@ $ %s migrate /path/to/genesis.json --chain-id=cosmoshub-4 --genesis-time=2019-04
 
 			var err error
 
-			firstMigration := "v0.38"
+			firstMigration := "v0.43"
 			importGenesis := args[0]
 
 			jsonBlob, err := ioutil.ReadFile(importGenesis)
 
 			if err != nil {
 				return errors.Wrap(err, "failed to read provided genesis file")
-			}
-
-			jsonBlob, err = migrateTendermintGenesis(jsonBlob)
-
-			if err != nil {
-				return errors.Wrap(err, "failed to migration from 0.32 Tendermint params to 0.34 parms")
 			}
 
 			genDoc, err := tmtypes.GenesisDocFromJSON(jsonBlob)
@@ -86,70 +72,6 @@ $ %s migrate /path/to/genesis.json --chain-id=cosmoshub-4 --genesis-time=2019-04
 
 			// TODO: handler error from migrationFunc call
 			newGenState := migrationFunc(initialState, clientCtx)
-
-			secondMigration := "v0.39"
-
-			migrationFunc = cli.GetMigrationCallback(secondMigration)
-			if migrationFunc == nil {
-				return fmt.Errorf("unknown migration function for version: %s", secondMigration)
-			}
-
-			// TODO: handler error from migrationFunc call
-			newGenState = migrationFunc(newGenState, clientCtx)
-
-			thirdMigration := "v0.40"
-
-			migrationFunc = cli.GetMigrationCallback(thirdMigration)
-			if migrationFunc == nil {
-				return fmt.Errorf("unknown migration function for version: %s", thirdMigration)
-			}
-
-			// TODO: handler error from migrationFunc call
-			newGenState = migrationFunc(newGenState, clientCtx)
-
-			var bankGenesis bank.GenesisState
-
-			clientCtx.JSONCodec.MustUnmarshalJSON(newGenState[bank.ModuleName], &bankGenesis)
-
-			bankGenesis.DenomMetadata = []bank.Metadata{
-				{
-					Description: "The native staking token of the Cosmos Hub.",
-					DenomUnits: []*bank.DenomUnit{
-						{Denom: "uatom", Exponent: uint32(0), Aliases: []string{"microatom"}},
-						{Denom: "matom", Exponent: uint32(3), Aliases: []string{"milliatom"}},
-						{Denom: "atom", Exponent: uint32(6), Aliases: []string{}},
-					},
-					Base:    "uatom",
-					Display: "atom",
-				},
-			}
-			newGenState[bank.ModuleName] = clientCtx.JSONCodec.MustMarshalJSON(&bankGenesis)
-
-			var stakingGenesis staking.GenesisState
-
-			clientCtx.JSONCodec.MustUnmarshalJSON(newGenState[staking.ModuleName], &stakingGenesis)
-
-			ibcTransferGenesis := ibcxfertypes.DefaultGenesisState()
-			ibcCoreGenesis := ibccoretypes.DefaultGenesisState()
-			capGenesis := captypes.DefaultGenesis()
-			evGenesis := evtypes.DefaultGenesisState()
-
-			ibcTransferGenesis.Params.ReceiveEnabled = false
-			ibcTransferGenesis.Params.SendEnabled = false
-
-			ibcCoreGenesis.ClientGenesis.Params.AllowedClients = []string{exported.Tendermint}
-			stakingGenesis.Params.HistoricalEntries = 10000
-
-			newGenState[ibcxfertypes.ModuleName] = clientCtx.JSONCodec.MustMarshalJSON(ibcTransferGenesis)
-			newGenState[host.ModuleName] = clientCtx.JSONCodec.MustMarshalJSON(ibcCoreGenesis)
-			newGenState[captypes.ModuleName] = clientCtx.JSONCodec.MustMarshalJSON(capGenesis)
-			newGenState[evtypes.ModuleName] = clientCtx.JSONCodec.MustMarshalJSON(evGenesis)
-			newGenState[staking.ModuleName] = clientCtx.JSONCodec.MustMarshalJSON(&stakingGenesis)
-
-			genDoc.AppState, err = json.Marshal(newGenState)
-			if err != nil {
-				return errors.Wrap(err, "failed to JSON marshal migrated genesis state")
-			}
 
 			genesisTime, _ := cmd.Flags().GetString(flagGenesisTime)
 			if genesisTime != "" {
@@ -175,6 +97,11 @@ $ %s migrate /path/to/genesis.json --chain-id=cosmoshub-4 --genesis-time=2019-04
 			newGenState, err = ibcv100.MigrateGenesis(newGenState, clientCtx, *genDoc, uint64(ibcconnectiontypes.DefaultTimePerBlock))
 			if err != nil {
 				return err
+			}
+
+			genDoc.AppState, err = json.Marshal(newGenState)
+			if err != nil {
+				return errors.Wrap(err, "failed to JSON marshal migrated genesis state")
 			}
 
 			replacementKeys, _ := cmd.Flags().GetString(flagReplacementKeys)

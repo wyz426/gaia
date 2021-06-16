@@ -3,8 +3,8 @@ module github.com/cosmos/gaia/v5
 go 1.16
 
 require (
-	github.com/cosmos/cosmos-sdk v0.43.0-beta1.0.20210614144515-5cd741a8789e
-	github.com/cosmos/ibc-go v1.0.0-alpha2.0.20210615093027-ca070bd2c6aa
+	github.com/cosmos/cosmos-sdk v0.43.0-beta1.0.20210616074453-3c82a32f9b2d
+	github.com/cosmos/ibc-go v1.0.0-alpha2.0.20210615132841-bae186278390
 	github.com/gorilla/mux v1.8.0
 	github.com/pkg/errors v0.9.1
 	github.com/rakyll/statik v0.1.7
